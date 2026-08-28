@@ -6,10 +6,8 @@
   <meta name="theme-color" content="#ffffff" />
   <title>BANKOM JATENGPANBAR</title>
   <link rel="icon" href="https://i.imgur.com/DTpZyLk.png" />
-
   <style>
-    html,
-    body {
+    html, body {
       margin: 0;
       padding: 0;
       width: 100%;
@@ -17,14 +15,12 @@
       background: #f5f7fb;
       overflow: hidden;
     }
-
     .iframe-container {
       width: 100%;
       height: 100dvh;
       overflow: hidden;
       background: #f5f7fb;
     }
-
     #app {
       display: block;
       width: 100%;
@@ -32,8 +28,6 @@
       border: 0;
       background: #fff;
     }
-
-    /* Tampilan ringan saat Apps Script sedang dimuat */
     .loading {
       position: fixed;
       inset: 0;
@@ -47,37 +41,17 @@
       transition: opacity .2s ease;
       pointer-events: none;
     }
-
-    .loading.hidden {
-      opacity: 0;
-      visibility: hidden;
-    }
-
-    .loading-box {
-      text-align: center;
-      padding: 24px;
-    }
-
+    .loading.hidden { opacity: 0; visibility: hidden; }
+    .loading-box { text-align: center; padding: 24px; }
     .loading-box img {
-      width: 58px;
-      height: 58px;
-      object-fit: contain;
-      margin-bottom: 12px;
+      width: 58px; height: 58px; object-fit: contain; margin-bottom: 12px;
     }
-
     .loading-box strong {
-      display: block;
-      color: #172033;
-      font-size: 18px;
-      margin-bottom: 6px;
+      display: block; color: #172033; font-size: 18px; margin-bottom: 6px;
     }
-
-    .loading-box span {
-      font-size: 13px;
-    }
+    .loading-box span { font-size: 13px; }
   </style>
 </head>
-
 <body>
   <div class="iframe-container">
     <div id="loading" class="loading">
@@ -91,7 +65,7 @@
     <iframe
       id="app"
       title="BANKOM MTA JATENGPANBAR"
-      src="https://script.google.com/macros/s/AKfycbyEwU4WOSUJK3F1j-74YUjQ_8jY1h4HvtAsf9GopglLPDW8k9gVa-4TtXwlLLVUlyyu/exec"
+      src="https://script.google.com/macros/s/AKfycbzajHsNpc1VQCSgVkaNRh5PZ4Sx_aXryZpfLC3jFJe0m1BFj6AgL-bcX4Pd_us9LJpr/exec?page=app"
       scrolling="yes"
       allowfullscreen
       webkitallowfullscreen
@@ -101,109 +75,54 @@
   </div>
 
   <script>
-    /*
-     * ==========================================================
-     * BANKOM MTA - GITHUB WRAPPER
-     * ==========================================================
-     *
-     * TUJUAN:
-     * 1. Address bar browser tetap di:
-     *    https://gnnjr41-netizen.github.io/bankom/
-     *
-     * 2. Google Apps Script hanya berjalan di dalam iframe.
-     *
-     * 3. Jika Apps Script meminta kembali ke halaman login,
-     *    jangan mengubah URL utama GitHub.
-     *
-     * 4. Komunikasi login/dashboard dilakukan melalui postMessage.
-     * ==========================================================
-     */
-
-    const APP_URL =
-      "https://script.google.com/macros/s/AKfycbyEwU4WOSUJK3F1j-74YUjQ_8jY1h4HvtAsf9GopglLPDW8k9gVa-4TtXwlLLVUlyyu/exec";
-
+    const BANKOM_LANDING_URL = 'https://gnnjr41-netizen.github.io/bankom/';
+    const APP_URL = 'https://script.google.com/macros/s/AKfycbyZ-OMeEegt9nZMYol-xLc4Zb3tdBgaHTWKGcj_Lf_3KLUSOzbB5PmM3VLYl8EOvZ8M/exec';
     const APP_ORIGIN = new URL(APP_URL).origin;
 
-    const iframe = document.getElementById("app");
-    const loading = document.getElementById("loading");
+    const iframe = document.getElementById('app');
+    const loading = document.getElementById('loading');
 
-    /*
-     * Hilangkan loading setelah iframe selesai dimuat.
-     */
-    iframe.addEventListener("load", () => {
-      setTimeout(() => {
-        loading.classList.add("hidden");
+    iframe.addEventListener('load', function () {
+      setTimeout(function () {
+        loading.classList.add('hidden');
       }, 150);
     });
 
-    /*
-     * Jangan pernah melakukan:
-     * window.location = APP_URL
-     * window.top.location = APP_URL
-     *
-     * Karena itu yang menyebabkan URL browser pindah
-     * dari GitHub Pages ke script.google.com.
-     */
+    function goToLanding() {
+      window.location.replace(BANKOM_LANDING_URL);
+    }
 
-    /*
-     * Terima pesan dari aplikasi Apps Script.
-     * Ini disiapkan agar login/logout tidak mengubah
-     * alamat utama GitHub Pages.
-     */
-    window.addEventListener("message", (event) => {
+    window.addEventListener('message', function (event) {
+      // Hanya terima perintah dari Apps Script kita sendiri.
       if (event.origin !== APP_ORIGIN) return;
 
       const data = event.data || {};
 
-      if (data.type === "BANKOM_READY") {
-        loading.classList.add("hidden");
+      if (data.type === 'BANKOM_READY') {
+        loading.classList.add('hidden');
+        return;
       }
 
-      if (data.type === "BANKOM_LOGIN_SUCCESS") {
-        loading.classList.add("hidden");
-
-        /*
-         * Token tidak ditaruh di URL utama GitHub.
-         * Session tetap dikelola oleh aplikasi Apps Script.
-         */
+      if (data.type === 'BANKOM_LOGIN_SUCCESS') {
         try {
           if (data.token) {
-            sessionStorage.setItem("bankom_token", data.token);
+            sessionStorage.setItem('bankom_token', data.token);
           }
-        } catch (err) {
-          console.warn("Session storage tidak tersedia:", err);
-        }
+        } catch (e) {}
+        loading.classList.add('hidden');
+        return;
       }
 
-      if (data.type === "BANKOM_LOGOUT") {
+      if (data.type === 'BANKOM_LOGOUT' || data.type === 'BANKOM_GO_LANDING') {
+        // Bersihkan session wrapper, lalu kembali ke landing GitHub.
         try {
-          sessionStorage.removeItem("bankom_token");
-        } catch (err) {}
-      }
-    });
+          sessionStorage.removeItem('bankom_token');
+          sessionStorage.removeItem('bankom_user');
+          localStorage.removeItem('bankom_token');
+          localStorage.removeItem('bankom_user');
+        } catch (e) {}
 
-    /*
-     * Jika halaman GitHub dibuka ulang, kirim token yang pernah
-     * tersimpan ke iframe tanpa memindahkan URL browser.
-     */
-    window.addEventListener("load", () => {
-      try {
-        const token = sessionStorage.getItem("bankom_token");
-
-        if (token) {
-          iframe.addEventListener("load", function sendSession() {
-            iframe.contentWindow.postMessage(
-              {
-                type: "BANKOM_RESTORE_SESSION",
-                token: token
-              },
-              APP_ORIGIN
-            );
-            iframe.removeEventListener("load", sendSession);
-          });
-        }
-      } catch (err) {
-        console.warn("Tidak dapat membaca session:", err);
+        window.location.replace(BANKOM_LANDING_URL);
       }
     });
   </script>
