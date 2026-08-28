@@ -14,13 +14,11 @@
       background-color: #eee;
       overflow: hidden; /* Mencegah scroll ganda */
     }
-
     .iframe-container {
       width: 100%;
       height: 100dvh; /* Menggunakan dvh agar pas di mobile browser */
       overflow: hidden;
     }
-
     iframe {
       display: block;
       width: 100%;
@@ -33,7 +31,7 @@
   <div class="iframe-container">
     <iframe
       id="app"
-      src="https://script.google.com/macros/s/AKfycbyiHtVesH594HiJLRpIhj4otdGk_ZpJjf9kGq2yKR7UKVfvA-0SzGCFHhEw0bHWn9JG/exec"
+      src="https://script.google.com/macros/s/AKfycbwoCkG3bA-Pogs4jRYS9maijQMRnhJROxURDzVERjLreX0GLqjP5tCiIGuAXHmH7tY/exec"
       scrolling="yes"
       allowfullscreen="true"
       webkitallowfullscreen="true"
@@ -41,5 +39,73 @@
       allow="fullscreen; camera; microphone; display-capture; geolocation;">
     </iframe>
   </div>
+
+  <script>
+    // ==========================================================================
+    // WRAPPER HANDSHAKE — supaya address bar TETAP di domain GitHub Pages ini,
+    // tidak pernah "lompat" ke script.google.com/....exec.
+    //
+    // Kenapa perlu ini: kode di dalam BANKOM MTA (JS.html / JS_LANDING.html)
+    // memakai window.top.location HANYA sebagai jaring pengaman kalau tidak
+    // ada wrapper yang menangani pesannya (mis. saat dibuka langsung dari URL
+    // Apps Script, bukan lewat halaman ini). Begitu wrapper ini membalas
+    // dengan pesan *_ACK, kode di dalam iframe akan berhenti dan menyerahkan
+    // navigasi sepenuhnya ke wrapper — makanya wrapper WAJIB membalas ack
+    // dan mengganti src iframe sendiri, bukan diam saja.
+    // ==========================================================================
+    (function () {
+      var BASE_APP_URL = 'https://script.google.com/macros/s/AKfycbwoCkG3bA-Pogs4jRYS9maijQMRnhJROxURDzVERjLreX0GLqjP5tCiIGuAXHmH7tY/exec';
+      var iframe = document.getElementById('app');
+
+      function isTrustedSource(event) {
+        // Pesan HARUS datang dari iframe kita sendiri.
+        if (!iframe || event.source !== iframe.contentWindow) return false;
+        // Konten Apps Script dilayani dari script.google.com ATAU dari
+        // sandbox *.googleusercontent.com miliknya sendiri — dua-duanya sah.
+        try {
+          var host = new URL(event.origin).hostname;
+          return host === 'script.google.com' || host.endsWith('.googleusercontent.com');
+        } catch (e) {
+          return false;
+        }
+      }
+
+      window.addEventListener('message', function (event) {
+        if (!isTrustedSource(event)) return;
+        var data = event.data || {};
+
+        switch (data.type) {
+          case 'BANKOM_IFRAME_READY':
+            // Sekadar formalitas handshake, tidak wajib untuk navigasi.
+            iframe.contentWindow.postMessage(
+              { type: 'BANKOM_WRAPPER_READY', source: 'BANKOM_MTA_WRAPPER' },
+              event.origin
+            );
+            break;
+
+          case 'BANKOM_GO_LANDING':
+            // User klik "Keluar" / "Kembali ke Beranda" di dalam app.
+            // Balas ack DULU (supaya app tidak jatuh ke window.top setelah
+            // timeout), baru ganti src iframe kembali ke URL dasar — address
+            // bar tab ini tetap di GitHub Pages, tidak pernah berpindah.
+            iframe.contentWindow.postMessage(
+              { type: 'BANKOM_GO_LANDING_ACK', source: 'BANKOM_MTA_WRAPPER' },
+              event.origin
+            );
+            iframe.src = BASE_APP_URL + '?page=landing&_ts=' + Date.now();
+            break;
+
+          case 'BANKOM_GO_APP':
+            // User klik "Login Pengurus" di layar Landing.
+            iframe.contentWindow.postMessage(
+              { type: 'BANKOM_GO_APP_ACK', source: 'BANKOM_MTA_WRAPPER' },
+              event.origin
+            );
+            iframe.src = BASE_APP_URL + '?page=app&_ts=' + Date.now();
+            break;
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
