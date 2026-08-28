@@ -2,8 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#ffffff" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>BANKOM JATENGPANBAR</title>
   <link rel="icon" href="https://i.imgur.com/DTpZyLk.png" />
   <style>
@@ -12,119 +11,35 @@
       padding: 0;
       width: 100%;
       height: 100%;
-      background: #f5f7fb;
-      overflow: hidden;
+      background-color: #eee;
+      overflow: hidden; /* Mencegah scroll ganda */
     }
+
     .iframe-container {
       width: 100%;
-      height: 100dvh;
+      height: 100dvh; /* Menggunakan dvh agar pas di mobile browser */
       overflow: hidden;
-      background: #f5f7fb;
     }
-    #app {
+
+    iframe {
       display: block;
       width: 100%;
       height: 100%;
-      border: 0;
-      background: #fff;
+      border: none;
     }
-    .loading {
-      position: fixed;
-      inset: 0;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #f5f7fb;
-      font-family: Arial, sans-serif;
-      color: #64748b;
-      transition: opacity .2s ease;
-      pointer-events: none;
-    }
-    .loading.hidden { opacity: 0; visibility: hidden; }
-    .loading-box { text-align: center; padding: 24px; }
-    .loading-box img {
-      width: 58px; height: 58px; object-fit: contain; margin-bottom: 12px;
-    }
-    .loading-box strong {
-      display: block; color: #172033; font-size: 18px; margin-bottom: 6px;
-    }
-    .loading-box span { font-size: 13px; }
   </style>
 </head>
 <body>
   <div class="iframe-container">
-    <div id="loading" class="loading">
-      <div class="loading-box">
-        <img src="https://i.imgur.com/DTpZyLk.png" alt="BANKOM MTA">
-        <strong>BANKOM MTA</strong>
-        <span>Memuat aplikasi...</span>
-      </div>
-    </div>
-
     <iframe
       id="app"
-      title="BANKOM MTA JATENGPANBAR"
-      src="https://script.google.com/macros/s/AKfycbyZ-OMeEegt9nZMYol-xLc4Zb3tdBgaHTWKGcj_Lf_3KLUSOzbB5PmM3VLYl8EOvZ8M/exec"
+      src="https://script.google.com/macros/s/AKfycbz2_mmI4DSSNvlHRcIhPrpR83PWBgZxj6ZZj_yVCEHzbNxNtQivJrIjbn-rh4JwybJW/exec"
       scrolling="yes"
-      allowfullscreen
-      webkitallowfullscreen
-      mozallowfullscreen
+      allowfullscreen="true"
+      webkitallowfullscreen="true"
+      mozallowfullscreen="true"
       allow="fullscreen; camera; microphone; display-capture; geolocation;">
     </iframe>
   </div>
-
-  <script>
-    const BANKOM_LANDING_URL = 'https://gnnjr41-netizen.github.io/bankom/';
-    const APP_URL = 'https://script.google.com/macros/s/AKfycbyZ-OMeEegt9nZMYol-xLc4Zb3tdBgaHTWKGcj_Lf_3KLUSOzbB5PmM3VLYl8EOvZ8M/exec';
-    const APP_ORIGIN = new URL(APP_URL).origin;
-
-    const iframe = document.getElementById('app');
-    const loading = document.getElementById('loading');
-
-    iframe.addEventListener('load', function () {
-      setTimeout(function () {
-        loading.classList.add('hidden');
-      }, 150);
-    });
-
-    function goToLanding() {
-      window.location.replace(BANKOM_LANDING_URL);
-    }
-
-    window.addEventListener('message', function (event) {
-      // Hanya terima perintah dari Apps Script kita sendiri.
-      if (event.origin !== APP_ORIGIN) return;
-
-      const data = event.data || {};
-
-      if (data.type === 'BANKOM_READY') {
-        loading.classList.add('hidden');
-        return;
-      }
-
-      if (data.type === 'BANKOM_LOGIN_SUCCESS') {
-        try {
-          if (data.token) {
-            sessionStorage.setItem('bankom_token', data.token);
-          }
-        } catch (e) {}
-        loading.classList.add('hidden');
-        return;
-      }
-
-      if (data.type === 'BANKOM_LOGOUT' || data.type === 'BANKOM_GO_LANDING') {
-        // Bersihkan session wrapper, lalu kembali ke landing GitHub.
-        try {
-          sessionStorage.removeItem('bankom_token');
-          sessionStorage.removeItem('bankom_user');
-          localStorage.removeItem('bankom_token');
-          localStorage.removeItem('bankom_user');
-        } catch (e) {}
-
-        window.location.replace(BANKOM_LANDING_URL);
-      }
-    });
-  </script>
 </body>
 </html>
