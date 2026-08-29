@@ -112,10 +112,11 @@
     var offline = document.getElementById('offline');
 
     // Halaman awal saat wrapper pertama kali dibuka.
-    // 'app' = langsung ke layar login (perilaku sebelumnya, dipertahankan).
-    // Ganti ke 'landing' kalau suatu saat ingin halaman publik BANKOM MTA
-    // (struktur, kegiatan terdekat, pengumuman, usulan) tampil dulu sebelum login.
-    var ENTRY_PAGE = 'app';
+    // 'landing' = tampilkan halaman publik BANKOM MTA dulu (struktur,
+    // kegiatan terdekat, pengumuman, usulan) - tombol "Login Pengurus" di
+    // situ akan pindah ke layar login lewat handshake BANKOM_GO_APP di bawah.
+    // Ganti ke 'app' kalau suatu saat ingin langsung ke layar login lagi.
+    var ENTRY_PAGE = 'landing';
 
     function showLoading(text) {
       loadingText.textContent = text || 'Memuat aplikasi...';
