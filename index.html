@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>BANKOM MTA</title>
+  <link rel="icon" href="https://i.imgur.com/DTpZyLk.png" />
+  <style>
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background: #f5f7fb; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    }
+    .iframe-container {
+      width: 100%;
+      /* 100dvh lebih akurat di mobile (address bar browser naik/turun),
+         fallback 100vh untuk browser lama yang belum kenal dvh. */
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      background: #f5f7fb;
+      padding-top: env(safe-area-inset-top, 0);
+      padding-bottom: env(safe-area-inset-bottom, 0);
+      box-sizing: border-box;
+    }
+    #app {
+      display: block; width: 100%; height: 100%; border: 0; background: #fff;
+    }
+    .overlay {
+      position: fixed; inset: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: center;
+      background: #f5f7fb; color: #64748b;
+      transition: opacity .2s ease;
+    }
+    .overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .overlay-box { text-align: center; padding: 24px; max-width: 320px; }
+    .overlay-box img { width: 58px; height: 58px; object-fit: contain; margin-bottom: 12px; }
+    .overlay-box strong { display: block; color: #172033; font-size: 18px; margin-bottom: 6px; }
+    .overlay-box span { font-size: 13px; line-height: 1.5; display: block; }
+    .retry-btn {
+      margin-top: 16px; border: 0; border-radius: 8px; padding: 10px 20px;
+      background: #dd8c1a; color: #fff; font-size: 13px; font-weight: 600;
+      cursor: pointer;
+    }
+    .retry-btn:active { opacity: .85; }
+  </style>
+</head>
+<body>
+  <div class="iframe-container">
+    <!-- Loader awal: tampil sampai iframe BENAR-BENAR siap (handshake dengan
+         JS.html selesai), bukan cuma sampai event 'load' iframe selesai -
+         supaya tidak ada kedipan konten setengah-render. -->
+    <div id="loading" class="overlay">
+      <div class="overlay-box">
+        <img src="https://i.imgur.com/DTpZyLk.png" alt="BANKOM MTA">
+        <strong>BANKOM MTA</strong>
+        <span id="loadingText">Memuat aplikasi...</span>
+      </div>
+    </div>
+
+    <!-- Ditampilkan hanya kalau iframe gagal terhubung sama sekali (mis. offline,
+         deployment URL berubah/nonaktif) - supaya user tidak terjebak di loader
+         selamanya tanpa penjelasan. -->
+    <div id="offline" class="overlay hidden">
+      <div class="overlay-box">
+        <img src="https://i.imgur.com/DTpZyLk.png" alt="BANKOM MTA">
+        <strong>Tidak Dapat Memuat Aplikasi</strong>
+        <span>Periksa koneksi internet Anda, lalu coba lagi.</span>
+        <button class="retry-btn" onclick="location.reload()">Coba Lagi</button>
+      </div>
+    </div>
+
+    <iframe id="app" title="BANKOM MTA JATENGPANBAR"
+      src="about:blank"
+      scrolling="yes" allowfullscreen webkitallowfullscreen mozallowfullscreen
+      allow="fullscreen; camera; microphone; display-capture; geolocation;"></iframe>
+  </div>
+
+  <script>
+    // ============================================================
+    // GANTI HANYA BARIS INI kalau deployment Apps Script berubah.
+    // Harus URL /exec (bukan /dev).
+    // ============================================================
+    var APP_URL = "https://script.google.com/macros/s/AKfycbxkF8-1j7DfR1sYNksV-_oxjSXp0MzBzdJnOQJxFtNWZJaSk6kVsvjP3wvjyY2kkeaf/exec";
+
+    var APP_ORIGIN = new URL(APP_URL).origin; // https://script.google.com
+
+    // PENTING: Apps Script SERING mengalihkan konten HtmlService ke domain
+    // pelaksana terpisah (subdomain *.googleusercontent.com), bukan tetap di
+    // script.google.com, tergantung cara deployment diakses. Kalau kita hanya
+    // menerima pesan dari APP_ORIGIN yang persis "https://script.google.com",
+    // pesan asli dari aplikasi bisa tertolak begitu saja (event.origin beda),
+    // dan sebaliknya pesan kita ke iframe bisa gagal terkirim karena target
+    // origin tidak cocok dengan origin dokumen sesungguhnya di dalam iframe.
+    // Makanya validasi origin di sini LEBIH LONGGAR (domain resmi Google saja,
+    // bukan string sama persis) dan pengiriman ke iframe pakai '*' -- sama
+    // seperti pola yang sudah dipakai JS.html/JS_LANDING.html saat mengirim
+    // pesan ke parent.
+    function isTrustedAppOrigin(origin) {
+      try {
+        var host = new URL(origin).hostname;
+        return host === 'script.google.com' || /\.googleusercontent\.com$/.test(host);
+      } catch (e) {
+        return false;
+      }
+    }
+
+    var iframe = document.getElementById('app');
+    var loading = document.getElementById('loading');
+    var loadingText = document.getElementById('loadingText');
+    var offline = document.getElementById('offline');
+
+    // Halaman awal saat wrapper pertama kali dibuka.
+    // 'app' = langsung ke layar login (perilaku sebelumnya, dipertahankan).
+    // Ganti ke 'landing' kalau suatu saat ingin halaman publik BANKOM MTA
+    // (struktur, kegiatan terdekat, pengumuman, usulan) tampil dulu sebelum login.
+    var ENTRY_PAGE = 'app';
+
+    function showLoading(text) {
+      loadingText.textContent = text || 'Memuat aplikasi...';
+      loading.classList.remove('hidden');
+      offline.classList.add('hidden');
+    }
+    function hideLoading() {
+      loading.classList.add('hidden');
+    }
+    function showOffline() {
+      loading.classList.add('hidden');
+      offline.classList.remove('hidden');
+    }
+
+    function pageUrl(page) {
+      return APP_URL + (APP_URL.indexOf('?') === -1 ? '?' : '&') + 'page=' + page;
+    }
+
+    // ------------------------------------------------------------
+    // HANDSHAKE — harus sama persis dengan tipe pesan yang dipakai
+    // JS.html (window.parent.postMessage(...)) dan JS_LANDING.html.
+    // Sumber wrapper SELALU 'BANKOM_MTA_WRAPPER' supaya waitForWrapperAck()
+    // di sisi aplikasi bisa memverifikasi pesan itu benar-benar dari kita.
+    // ------------------------------------------------------------
+    var WRAPPER_SOURCE = 'BANKOM_MTA_WRAPPER';
+    var iframeReady = false;
+    var handshakeTimer = null;
+
+    function postToApp(type) {
+      try {
+        // targetOrigin '*' sengaja dipakai: origin dokumen sesungguhnya di
+        // dalam iframe bisa berupa subdomain *.googleusercontent.com yang
+        // tidak bisa kita tebak persis sebelumnya (lihat catatan di atas).
+        iframe.contentWindow.postMessage({ type: type, source: WRAPPER_SOURCE }, '*');
+      } catch (e) { /* iframe belum siap, aman diabaikan */ }
+    }
+
+    function announceWrapperReady() {
+      // Dikirim berulang beberapa kali setelah iframe 'load' karena JS.html
+      // baru memasang listener-nya setelah DOMContentLoaded — kalau kita
+      // cuma kirim sekali persis saat 'load', ada kemungkinan race condition
+      // pesan terkirim sebelum listener terpasang.
+      var attempts = 0;
+      clearInterval(handshakeTimer);
+      handshakeTimer = setInterval(function () {
+        attempts++;
+        postToApp('BANKOM_WRAPPER_READY');
+        if (iframeReady || attempts >= 10) clearInterval(handshakeTimer);
+      }, 300);
+    }
+
+    iframe.addEventListener('load', function () {
+      // about:blank juga memicu 'load' - abaikan, tunggu load APP_URL asli.
+      if (iframe.src === 'about:blank' || iframe.src === '') return;
+      announceWrapperReady();
+      // Failsafe: kalau handshake IFRAME_READY tidak pernah datang (mis.
+      // versi lama JS.html tanpa handshake), tetap sembunyikan loader
+      // supaya user tidak terjebak.
+      setTimeout(hideLoading, 1500);
+    });
+
+    iframe.addEventListener('error', showOffline);
+
+    window.addEventListener('message', function (event) {
+      if (!isTrustedAppOrigin(event.origin)) return;
+      var data = event.data || {};
+
+      if (data.type === 'BANKOM_IFRAME_READY' && data.source === 'BANKOM_MTA') {
+        iframeReady = true;
+        clearInterval(handshakeTimer);
+        hideLoading();
+        return;
+      }
+
+      // Aplikasi (dari Index.html) minta pindah ke Landing tanpa mengubah
+      // address bar github.io. Kita cukup ganti src iframe, lalu ACK.
+      if (data.type === 'BANKOM_GO_LANDING' && data.source === 'BANKOM_MTA') {
+        showLoading('Menyiapkan halaman beranda...');
+        iframeReady = false; // reset supaya handshake ulang jalan lagi di halaman baru
+        iframe.src = pageUrl('landing');
+        postToApp('BANKOM_GO_LANDING_ACK');
+        return;
+      }
+
+      // Aplikasi (dari Landing.html, tombol "Login Pengurus") minta pindah
+      // ke layar App/login. Sama, ganti src iframe di dalam wrapper, ACK.
+      if (data.type === 'BANKOM_GO_APP' && data.source === 'BANKOM_MTA') {
+        showLoading('Menyiapkan aplikasi...');
+        iframeReady = false; // reset supaya handshake ulang jalan lagi di halaman baru
+        iframe.src = pageUrl('app');
+        postToApp('BANKOM_GO_APP_ACK');
+        return;
+      }
+    });
+
+    // Fallback keras: kalau dalam 12 detik iframe belum pernah selesai load
+    // sama sekali (mis. deployment URL salah/nonaktif, atau benar-benar offline),
+    // jangan biarkan user menatap loader selamanya.
+    var hardTimeout = setTimeout(function () {
+      if (loading.classList.contains('hidden')) return;
+      showOffline();
+    }, 12000);
+    window.addEventListener('message', function (event) {
+      if (isTrustedAppOrigin(event.origin)) clearTimeout(hardTimeout);
+    });
+
+    // Mulai memuat.
+    iframe.src = pageUrl(ENTRY_PAGE);
+  </script>
+</body>
+</html>
