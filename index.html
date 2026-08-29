@@ -82,7 +82,7 @@
     // GANTI HANYA BARIS INI kalau deployment Apps Script berubah.
     // Harus URL /exec (bukan /dev).
     // ============================================================
-    var APP_URL = "https://script.google.com/macros/s/AKfycbxkF8-1j7DfR1sYNksV-_oxjSXp0MzBzdJnOQJxFtNWZJaSk6kVsvjP3wvjyY2kkeaf/exec";
+    var APP_URL = "https://script.google.com/macros/s/AKfycbxOQ6ivcyObR_z8OiYTx9ywprf0GQZMLmCWwbbR3SqrXoVw0ZDMMP2yF2s3OECzeX6c/exec";
 
     var APP_ORIGIN = new URL(APP_URL).origin; // https://script.google.com
 
@@ -154,6 +154,19 @@
       } catch (e) { /* iframe belum siap, aman diabaikan */ }
     }
 
+    // ACK dikirim BEBERAPA KALI dalam ~1.2 detik (bukan sekali saja), supaya
+    // andal walau ada jeda render/handshake di sisi aplikasi (Index.html/
+    // Landing.html versi sebelumnya perlu update juga - lihat catatan JS.html).
+    function postAckBurst(type) {
+      postToApp(type); // kirim langsung, sebelum halaman lama di iframe di-unload
+      var n = 0;
+      var t = setInterval(function () {
+        n++;
+        postToApp(type);
+        if (n >= 6) clearInterval(t);
+      }, 200);
+    }
+
     function announceWrapperReady() {
       // Dikirim berulang beberapa kali setelah iframe 'load' karena JS.html
       // baru memasang listener-nya setelah DOMContentLoaded — kalau kita
@@ -197,7 +210,7 @@
         showLoading('Menyiapkan halaman beranda...');
         iframeReady = false; // reset supaya handshake ulang jalan lagi di halaman baru
         iframe.src = pageUrl('landing');
-        postToApp('BANKOM_GO_LANDING_ACK');
+        postAckBurst('BANKOM_GO_LANDING_ACK');
         return;
       }
 
@@ -207,7 +220,7 @@
         showLoading('Menyiapkan aplikasi...');
         iframeReady = false; // reset supaya handshake ulang jalan lagi di halaman baru
         iframe.src = pageUrl('app');
-        postToApp('BANKOM_GO_APP_ACK');
+        postAckBurst('BANKOM_GO_APP_ACK');
         return;
       }
     });
